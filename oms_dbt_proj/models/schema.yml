@@ -1,0 +1,177 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Staging model for customers sourced from L1_LANDING.CUSTOMERS. Cleans and standardizes customer records including derived full name."
+    columns:
+      - name: CUSTOMERID
+        description: "Unique identifier for each customer"
+        tests:
+          - unique
+          - not_null
+      - name: FIRSTNAME
+        description: "Customer first name"
+        tests:
+          - not_null
+      - name: LASTNAME
+        description: "Customer last name"
+        tests:
+          - not_null
+      - name: EMAIL
+        description: "Customer email address"
+        tests:
+          - not_null
+      - name: PHONE
+        description: "Customer phone number"
+      - name: ADDRESS
+        description: "Customer street address"
+      - name: CITY
+        description: "Customer city"
+      - name: STATE
+        description: "Customer state"
+      - name: ZIPCODE
+        description: "Customer zip code"
+      - name: UPDATED_AT
+        description: "Timestamp of last record update in source system"
+      - name: cUSTOMERNAME
+        description: "Derived full name — concatenation of FIRSTNAME and LASTNAME"
+        tests:
+          - not_null
+
+  - name: stg_orders
+    description: "Staging model for orders sourced from L1_LANDING.ORDERS. Decodes status codes into human-readable descriptions."
+    columns:
+      - name: ORDERID
+        description: "Unique identifier for each order"
+        tests:
+          - unique
+          - not_null
+      - name: ORDERDATE
+        description: "Date the order was placed"
+        tests:
+          - not_null
+      - name: CUSTOMERID
+        description: "Foreign key referencing stg_customers"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: CUSTOMERID
+      - name: EMPLOYEEID
+        description: "ID of employee who processed the order"
+      - name: STOREID
+        description: "ID of store where order was placed"
+      - name: StatusCD
+        description: "Raw status code from source system (01, 02, 03)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['01', '02', '03']
+      - name: StatusDesc
+        description: "Human-readable order status — In Progress, Completed, or Cancelled"
+      - name: UPDATED_AT
+        description: "Timestamp of last record update in source system"
+
+  - name: orderitems_stg
+    description: "Staging model for order line items sourced from L1_LANDING.ORDERITEMS. Computes total price per line item."
+    columns:
+      - name: ORDERID
+        description: "Foreign key referencing stg_orders"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: ORDERID
+      - name: ORDERITEMID
+        description: "Unique identifier for each order line item"
+        tests:
+          - not_null
+      - name: PRODUCTID
+        description: "ID of the product ordered"
+        tests:
+          - not_null
+      - name: QUANTITY
+        description: "Number of units ordered"
+        tests:
+          - not_null
+      - name: UNITPRICE
+        description: "Price per unit at time of order"
+        tests:
+          - not_null
+      - name: TotalPrice
+        description: "Derived total price — QUANTITY multiplied by UNITPRICE"
+        tests:
+          - not_null
+      - name: UPDATED_AT
+        description: "Timestamp of last record update in source system"
+
+  - name: orders_fact
+    description: "Fact table for orders joining stg_orders and orderitems_stg. Computes per-order revenue and order count."
+    columns:
+      - name: OrderID
+        description: "Unique order identifier"
+        tests:
+          - unique
+          - not_null
+      - name: OrderDate
+        description: "Date the order was placed"
+        tests:
+          - not_null
+      - name: CustomerID
+        description: "Foreign key referencing stg_customers"
+        tests:
+          - not_null
+      - name: EmployeeID
+        description: "ID of employee who processed the order"
+      - name: StoreID
+        description: "ID of store where order was placed"
+      - name: StatusCD
+        description: "Raw status code"
+      - name: StatusDesc
+        description: "Human-readable order status"
+      - name: OrderCount
+        description: "Count of orders — always 1 at order grain, used for aggregation upstream"
+      - name: Revenue
+        description: "Total revenue for the order computed from order items"
+        tests:
+          - not_null
+      - name: Updated_at
+        description: "Timestamp of last record update"
+
+  - name: customerorders
+    description: "Analytics model showing order count per customer. Aggregates from stg_orders joined to stg_customers."
+    columns:
+      - name: CustomerID
+        description: "Unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: CustomerName
+        description: "Full name of the customer"
+        tests:
+          - not_null
+      - name: No_Of_Orders
+        description: "Total number of orders placed by the customer"
+        tests:
+          - not_null
+
+  - name: customerrevenue
+    description: "Analytics model computing total revenue and order count per customer. Final reporting layer joining orders_fact and stg_customers."
+    columns:
+      - name: CustomerID
+        description: "Unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: cUSTOMERNAME
+        description: "Full name of the customer"
+        tests:
+          - not_null
+      - name: OrderCount
+        description: "Total number of orders for the customer"
+        tests:
+          - not_null
+      - name: Revenue
+        description: "Total revenue generated by the customer across all orders"
+        tests:
+          - not_null
