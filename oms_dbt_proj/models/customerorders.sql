@@ -1,16 +1,18 @@
-
-
-WITH CUSTOMERORDERS AS (
-SELECT
-c.CustomerID,
-CONCAT(c.firstName, ' ', c.lastName) AS CustomerName,
-COUNT(o.OrderID) AS No_Of_Orders
-FROM L1_LANDING.CUSTOMERS c
-INNER JOIN L1_LANDING.ORDERS o
-ON c.CustomerID = o.CustomerID
-GROUP BY c.CustomerID, CustomerName
-ORDER BY No_Of_Orders DESC
+with customer_orders as (
+    select
+        c.CUSTOMERID,
+        c.CUSTOMERNAME,
+        COUNT(o.ORDERID) as No_Of_Orders
+    from {{ ref('stg_customers') }} c
+    inner join {{ ref('stg_orders') }} o on c.CUSTOMERID = o.CUSTOMERID
+    group by
+        c.CUSTOMERID,
+        c.CUSTOMERNAME
 )
 
-SELECT CustomerID, CustomerName, No_Of_Orders
-FROM CUSTOMERORDERS
+select
+    CUSTOMERID,
+    CUSTOMERNAME,
+    No_Of_Orders
+from customer_orders
+order by No_Of_Orders desc

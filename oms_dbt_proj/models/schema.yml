@@ -33,7 +33,7 @@ models:
         description: "Customer zip code"
       - name: UPDATED_AT
         description: "Timestamp of last record update in source system"
-      - name: cUSTOMERNAME
+      - name: CUSTOMERNAME
         description: "Derived full name — concatenation of FIRSTNAME and LASTNAME"
         tests:
           - not_null
@@ -72,7 +72,7 @@ models:
       - name: UPDATED_AT
         description: "Timestamp of last record update in source system"
 
-  - name: orderitems_stg
+  - name: stg_orderitems
     description: "Staging model for order line items sourced from L1_LANDING.ORDERITEMS. Computes total price per line item."
     columns:
       - name: ORDERID
@@ -85,6 +85,7 @@ models:
       - name: ORDERITEMID
         description: "Unique identifier for each order line item"
         tests:
+          - unique
           - not_null
       - name: PRODUCTID
         description: "ID of the product ordered"
@@ -106,24 +107,24 @@ models:
         description: "Timestamp of last record update in source system"
 
   - name: orders_fact
-    description: "Fact table for orders joining stg_orders and orderitems_stg. Computes per-order revenue and order count."
+    description: "Fact table for orders joining stg_orders and stg_orderitems. Computes per-order revenue and order count."
     columns:
-      - name: OrderID
+      - name: ORDERID
         description: "Unique order identifier"
         tests:
           - unique
           - not_null
-      - name: OrderDate
+      - name: ORDERDATE
         description: "Date the order was placed"
         tests:
           - not_null
-      - name: CustomerID
+      - name: CUSTOMERID
         description: "Foreign key referencing stg_customers"
         tests:
           - not_null
-      - name: EmployeeID
+      - name: EMPLOYEEID
         description: "ID of employee who processed the order"
-      - name: StoreID
+      - name: STOREID
         description: "ID of store where order was placed"
       - name: StatusCD
         description: "Raw status code"
@@ -135,18 +136,18 @@ models:
         description: "Total revenue for the order computed from order items"
         tests:
           - not_null
-      - name: Updated_at
+      - name: UPDATED_AT
         description: "Timestamp of last record update"
 
   - name: customerorders
-    description: "Analytics model showing order count per customer. Aggregates from stg_orders joined to stg_customers."
+    description: "Analytics model showing order count per customer. Uses ref() to build on top of stg_customers and stg_orders."
     columns:
-      - name: CustomerID
+      - name: CUSTOMERID
         description: "Unique customer identifier"
         tests:
           - unique
           - not_null
-      - name: CustomerName
+      - name: CUSTOMERNAME
         description: "Full name of the customer"
         tests:
           - not_null
@@ -158,12 +159,12 @@ models:
   - name: customerrevenue
     description: "Analytics model computing total revenue and order count per customer. Final reporting layer joining orders_fact and stg_customers."
     columns:
-      - name: CustomerID
+      - name: CUSTOMERID
         description: "Unique customer identifier"
         tests:
           - unique
           - not_null
-      - name: cUSTOMERNAME
+      - name: CUSTOMERNAME
         description: "Full name of the customer"
         tests:
           - not_null
